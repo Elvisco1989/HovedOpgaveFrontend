@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vue E-Commerce App</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    form label { display: block; margin-bottom: 8px; }
+    .error { color: red; margin-top: 1em; }
+    .success { color: green; margin-top: 1em; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    button { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Vue E-Commerce Application</h1>
+
+    <!-- Customer Management -->
+    <section>
+      <h2>Create Customer</h2>
+      <form @submit.prevent="createCustomer">
+        <label>Name: <input v-model="customer.name" required /></label>
+        <label>Email: <input v-model="customer.email" type="email" required /></label>
+        <label>Address: <input v-model="customer.address" required /></label>
+        <label>Phone: <input v-model="customer.phoneNumber" required /></label>
+        <label>Segment: <input v-model="customer.segment" required /></label>
+        <button type="submit">Create Customer</button>
+      </form>
+    </section>
+
+    <!-- View All Customers -->
+    <section v-if="customers.length">
+      <h2>All Customers</h2>
+      <ul>
+        <li v-for="cust in customers" :key="cust.id">
+          {{ cust.name }} - {{ cust.email }} - {{ cust.address }} - {{ cust.phoneNumber }}
+        </li>
+      </ul>
+    </section>
+
+    <!-- Product Management -->
+    <section>
+      <h2>Add Product</h2>
+      <form @submit.prevent="addProduct">
+        <label>Name: <input v-model="product.name" required /></label>
+        <label>Description: <input v-model="product.description" required /></label>
+        <label>Price: <input v-model.number="product.price" type="number" min="0" step="0.01" required /></label>
+        <label>Stock: <input v-model.number="product.stock" type="number" min="0" required /></label>
+        <button type="submit">Add Product</button>
+      </form>
+    </section>
+
+    <!-- Product List -->
+    <section>
+      <h2>Product List</h2>
+      <ul>
+        <li v-for="prod in products" :key="prod.id">
+          <strong>{{ prod.name }}</strong> - {{ prod.price.toFixed(2) }} DKK<br />
+          {{ prod.description }}<br />
+          In Stock: {{ prod.stock }}<br />
+          <button @click="addToBasket(prod)" :disabled="prod.stock === 0">Add to Basket</button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Select Existing Customer -->
+    <section v-if="customers.length">
+      <h2>Select Customer</h2>
+      <label>
+        Customer:
+        <select v-model="customerId" required>
+          <option disabled value="">Please select</option>
+          <option v-for="cust in customers" :key="cust.id" :value="cust.id">
+            {{ cust.name }} ({{ cust.email }})
+          </option>
+        </select>
+      </label>
+    </section>
+
+    <!-- Shopping Basket -->
+    <section v-if="basket.length">
+      <h2>Shopping Basket</h2>
+      <table>
+        <thead>
+          <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in basket" :key="item.product.id">
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.product.price.toFixed(2) }}</td>
+            <td>{{ (item.product.price * item.quantity).toFixed(2) }}</td>
+            <td>
+              <button @click="increaseQuantity(item)">+</button>
+              <button @click="decreaseQuantity(item)" :disabled="item.quantity <= 1">-</button>
+              <button @click="removeFromBasket(item)">Remove</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>Total: {{ basketTotal.toFixed(2) }} DKK</strong></p>
+      <button @click="checkout">Checkout</button>
+    </section>
+
+    <!-- Order Summary -->
+    <section v-if="order">
+      <h2>Order Summary</h2>
+      <p><strong>Order ID:</strong> {{ order.orderId }}</p>
+      <p><strong>Customer Name:</strong> {{ order.customerName }}</p>
+      <p><strong>Address:</strong> {{ order.customerAddress }}</p>
+      <p><strong>Email:</strong> {{ order.customerEmail }}</p>
+      <p><strong>Payment Status:</strong> {{ order.paymentStatus }}</p>
+      <p><strong>Total Amount:</strong> {{ order.totalAmount.toFixed(2) }} DKK</p>
+      <p><strong>Next Delivery Date:</strong> {{ formatDate(order.nextDeliveryDate) }}</p>
+
+      <h3>Products</h3>
+      <table>
+        <thead>
+          <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in order.products" :key="item.productName">
+            <td>{{ item.productName }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.price.toFixed(2) }}</td>
+            <td>{{ item.total.toFixed(2) }}</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr><td colspan="3"><strong>Order Total</strong></td><td>{{ order.orderTotal.toFixed(2) }}</td></tr>
+        </tfoot>
+      </table>
+
+      <p class="success">{{ order.message }}</p>
+    </section>
+
+    <!-- Error Message -->
+    <div v-if="error" class="error">{{ error }}</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

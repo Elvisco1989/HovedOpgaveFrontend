@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simple Shop</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="index.js" defer></script>
+  <link rel="icon" href="/images/favicon.ico" />
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .error { color: red; }
+    .basket, .products, .order-summary { margin-top: 30px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+
+    /* NAV BAR */
+    nav {
+      background-color: #ccc; /* grey background */
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 60px;
+      position: relative;
+    }
+
+    .nav-left, .nav-center, .nav-right {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .nav-left {
+      flex: 1;
+      font-weight: bold;
+      font-size: 14px;
+      justify-content: flex-start;
+      user-select: none;
+    }
+
+    .nav-center {
+      flex: 1;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      user-select: none;
+    }
+
+    .nav-right {
+      flex: 1;
+      justify-content: flex-end;
+      gap: 15px;
+      font-weight: normal;
+      font-size: 14px;
+    }
+
+    .nav-right button, .nav-right a {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      color: black;
+      text-decoration: none;
+      padding: 6px 10px;
+    }
+    .nav-right button:hover, .nav-right a:hover {
+      text-decoration: underline;
+    }
+
+    /* Basket fixed bottom right */
+    #basket-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 28px;
+      background-color: #eee;
+      border-radius: 50%;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      user-select: none;
+      z-index: 1000;
+      position: fixed;
+    }
+
+    #basket-button span {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: red;
+      color: white;
+      border-radius: 50%;
+      padding: 2px 6px;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    /* Rest of your styles unchanged */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .product-card {
+      border: 1px solid #ccc;
+      padding: 15px;
+      background: #fdfdfd;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .product-card button {
+      margin-top: 10px;
+      padding: 6px 12px;
+    }
+
+    .product-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Online Shop Demo</h1>
+
+    <nav>
+      <div class="nav-left">Best Beer since 1989</div>
+      <div class="nav-center">Royal Unibrew</div>
+      <div class="nav-right">
+        <a href="#about">About</a>
+        <a href="#kundeservice">Kunderservice</a>
+        <button @click="login">Login</button>
+      </div>
+    </nav>
+
+    <!-- Basket icon fixed bottom right -->
+    <button id="basket-button" @click="showBasket = !showBasket" aria-label="Basket">
+      🛒
+      <span v-if="totalItems">{{ totalItems }}</span>
+    </button>
+
+    <!-- Shop Section -->
+    <div v-if="currentTab === 'shop'">
+      <label>
+        Enter Customer ID:
+        <input v-model.number="customerId" type="number" />
+      </label>
+
+      <div class="error" v-if="error">{{ error }}</div>
+
+      <div class="products">
+        <h2>Products</h2>
+        <div v-if="products.length === 0">Loading products...</div>
+
+        <div class="product-grid">
+          <div class="product-card" v-for="product in products" :key="product.productId">
+            <img v-if="product.imagePath" :src="`https://localhost:7155/images/${encodeURIComponent(product.imagePath.split('/').pop())}`" :alt="product.name" />
+            <strong>{{ product.name }}</strong> - {{ product.price }} DKK<br>
+            <span>Description: {{ product.description }}</span><br>
+            <span>In Stock: {{ product.stock }}</span>
+            <button @click="addToBasket(product)" :disabled="product.stock === 0">Add to Basket</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="basket" v-if="showBasket && basket.length > 0" style="border: 1px solid #ccc; padding: 15px; margin-top: 20px; background: #f9f9f9;">
+        <h2>Your Basket</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in basket" :key="item.product.productId">
+              <td>{{ item.product.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.product.price }}</td>
+              <td>{{ (item.product.price * item.quantity).toFixed(2) }}</td>
+              <td>
+                <button @click="addToBasket(item.product)">➕</button>
+                <button @click="removeFromBasket(item.product)">➖</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button @click="checkout" style="margin-top: 10px;">Checkout</button>
+      </div>
+
+      <div class="order-summary" v-if="order">
+        <h2>Order Summary</h2>
+        <p><strong>Order ID:</strong> {{ order.orderId }}</p>
+        <p><strong>Customer Name:</strong> {{ order.customerName }}</p>
+        <p><strong>Address:</strong> {{ order.customerAddress }}</p>
+        <p><strong>Email:</strong> {{ order.customerEmail }}</p>
+        <p><strong>Customer Segment:</strong> {{ order.customerSegment }}</p>
+        <p><strong>Payment Status:</strong> {{ order.paymentStatus }}</p>
+        <p><strong>Total Amount:</strong> {{ order.totalAmount }}</p>
+        <p><strong>Next Delivery Date:</strong> {{ formatDate(order.nextDeliveryDate) }}</p>
+
+        <table>
+          <thead>
+            <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in order.products" :key="item.productName">
+              <td>{{ item.productName }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.price.toFixed(2) }}</td>
+              <td>{{ item.total.toFixed(2) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3"><strong>Order Total</strong></td><td>{{ order.orderTotal.toFixed(2) }}</td></tr>
+          </tfoot>
+        </table>
+
+        <p style="margin-top: 1rem; color: green;"><strong>{{ order.message }}</strong></p>
+      </div>
+    </div>
+
+    <!-- Customers Section -->
+    <div v-if="currentTab === 'customers'">
+      <h2>Customers</h2>
+      <form @submit.prevent="addCustomer">
+        <input v-model="newCustomer.name" placeholder="Name" required />
+        <input v-model="newCustomer.address" placeholder="Address" required />
+        <input v-model="newCustomer.segment" placeholder="Segment" required />
+        <input v-model="newCustomer.email" placeholder="Email" />
+        <input v-model="newCustomer.phoneNumber" placeholder="Phone Number" />
+        <button type="submit">Add Customer</button>
+      </form>
+
+      <table v-if="customers.length > 0">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Segment</th><th>Address</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in customers" :key="c.customerId">
+            <td>{{ c.customerId }}</td> 
+            <td>{{ c.name }}</td>
+            <td>{{ c.segment }}</td>
+            <td>{{ c.address }}</td>
+            <td><button @click="deleteCustomer(c.customerId)">Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Products Section -->
+    <div v-if="currentTab === 'products'">
+      <h2>Products</h2>
+      <form @submit.prevent="addProduct">
+        <input v-model="newProduct.name" placeholder="Name" required />
+        <input v-model.number="newProduct.price" placeholder="Price" required />
+        <input v-model.number="newProduct.stock" placeholder="Stock" required />
+        <input v-model="newProduct.description" placeholder="Description" />
+        <input v-model="newProduct.imagePath" placeholder="Image Path (e.g. images/bird.jpg)" />
+        <button type="submit">Add Product</button>
+      </form>
+
+      <table v-if="products.length > 0">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in products" :key="p.productId">
+            <td>
+              <img v-if="p.imagePath" :src="`https://localhost:7155/images/${encodeURIComponent(p.imagePath.split('/').pop())}`" alt="Product" width="60" />
+            </td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.price }}</td>
+            <td>{{ p.stock }}</td>
+            <td>{{ p.description }}</td>
+            <td><button @click="deleteProduct(p.productId)">Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="error" v-if="orderError">{{ orderError }}</div>
+  </div>
+</body>
+</html>
